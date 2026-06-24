@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Streaming Avatar Demo</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: system-ui, sans-serif;
+        background: #0f0f0f;
+        color: #e0e0e0;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.5rem;
+        padding: 1.5rem;
+      }
+
+      h1 { font-size: 1.5rem; font-weight: 600; color: #fff; }
+
+      #setup {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        width: 100%;
+        max-width: 420px;
+      }
+
+      label { font-size: 0.8rem; color: #999; margin-bottom: 0.2rem; display: block; }
+
+      input {
+        width: 100%;
+        padding: 0.6rem 0.8rem;
+        border-radius: 6px;
+        border: 1px solid #333;
+        background: #1a1a1a;
+        color: #e0e0e0;
+        font-size: 0.9rem;
+        outline: none;
+      }
+      input:focus { border-color: #555; }
+
+      .hint {
+        font-size: 0.75rem;
+        color: #666;
+        margin-top: -0.4rem;
+      }
+
+      #video-container {
+        position: relative;
+        width: 100%;
+        max-width: 640px;
+        aspect-ratio: 16/9;
+        background: #1a1a1a;
+        border-radius: 12px;
+        overflow: hidden;
+        display: none;
+      }
+
+      video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      #status-badge {
+        position: absolute;
+        top: 0.75rem;
+        left: 0.75rem;
+        background: rgba(0,0,0,0.6);
+        border-radius: 20px;
+        padding: 0.3rem 0.7rem;
+        font-size: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      #status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #666;
+      }
+      #status-dot.connected { background: #22c55e; }
+      #status-dot.loading { background: #f59e0b; animation: pulse 1s infinite; }
+      #status-dot.error { background: #ef4444; }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+      }
+
+      #transcript-overlay {
+        position: absolute;
+        bottom: 0.75rem;
+        left: 0.75rem;
+        right: 0.75rem;
+        background: rgba(0,0,0,0.7);
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        min-height: 2rem;
+      }
+
+      #controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+        width: 100%;
+        max-width: 640px;
+        display: none;
+      }
+
+      button {
+        padding: 0.55rem 1.1rem;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: opacity 0.15s;
+      }
+      button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+      #btn-start    { background: #22c55e; color: #000; }
+      #btn-stop     { background: #ef4444; color: #fff; display: none; }
+      #btn-speak    { background: #3b82f6; color: #fff; }
+      #btn-interrupt{ background: #f59e0b; color: #000; }
+      #btn-listen   { background: #8b5cf6; color: #fff; }
+
+      #speak-row {
+        display: flex;
+        gap: 0.5rem;
+        width: 100%;
+        max-width: 640px;
+        display: none;
+      }
+
+      #speak-input {
+        flex: 1;
+        padding: 0.55rem 0.8rem;
+        border-radius: 6px;
+        border: 1px solid #333;
+        background: #1a1a1a;
+        color: #e0e0e0;
+        font-size: 0.875rem;
+        outline: none;
+      }
+      #speak-input:focus { border-color: #555; }
+
+      #log {
+        width: 100%;
+        max-width: 640px;
+        background: #1a1a1a;
+        border-radius: 8px;
+        padding: 0.75rem;
+        font-family: monospace;
+        font-size: 0.75rem;
+        color: #888;
+        max-height: 150px;
+        overflow-y: auto;
+        display: none;
+      }
+      #log p { margin: 0; line-height: 1.6; }
+      #log p.event  { color: #6ee7b7; }
+      #log p.error  { color: #fca5a5; }
+      #log p.info   { color: #93c5fd; }
+    </style>
+  </head>
+  <body>
+    <h1>Streaming Avatar Demo</h1>
+
+    <div id="setup">
+      <div>
+        <label>LiveAvatar API Key</label>
+        <input id="api-key" type="password" placeholder="Your API key from liveavatar.com" />
+      </div>
+      <div>
+        <label>Avatar ID</label>
+        <input id="avatar-id" type="text" value="dd73ea75-1218-4ef3-92ce-606d5f7fbc0a" />
+        <p class="hint">Default: sandbox avatar "Wayne". Use is_sandbox=true (no credits).</p>
+      </div>
+      <div>
+        <label>ElevenLabs Secret ID <span style="color:#555">(from liveavatar.com → Secrets)</span></label>
+        <input id="elevenlabs-secret-id" type="text" placeholder="Secret ID after registering your 11Labs API key" />
+      </div>
+      <div>
+        <label>ElevenLabs Agent ID</label>
+        <input id="elevenlabs-agent-id" type="text" placeholder="Agent ID from elevenlabs.io" />
+      </div>
+      <div style="display:flex;gap:0.5rem;align-items:center;">
+        <input id="sandbox-toggle" type="checkbox" checked style="width:auto;" />
+        <label style="margin:0;">Sandbox mode (free, ~1 min sessions)</label>
+      </div>
+      <button id="btn-start">Start Session</button>
+    </div>
+
+    <div id="video-container">
+      <video id="avatar-video" autoplay playsinline muted></video>
+      <div id="status-badge">
+        <div id="status-dot" class="loading"></div>
+        <span id="status-text">Connecting…</span>
+      </div>
+      <div id="transcript-overlay" id="transcript"></div>
+    </div>
+
+    <div id="controls">
+      <button id="btn-interrupt">Interrupt</button>
+      <button id="btn-listen">Start Listening</button>
+      <button id="btn-stop">End Session</button>
+    </div>
+
+    <div id="speak-row">
+      <input id="speak-input" type="text" placeholder="Type text for avatar to say…" />
+      <button id="btn-speak">Send to Agent</button>
+    </div>
+
+    <div id="log"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
